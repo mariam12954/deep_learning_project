@@ -1,0 +1,12 @@
+=======================================================
+  Dataset Report - Seif Medical Scraper
+=======================================================
+Total scraped products   : 278
+Medical products         : 278
+CNN-ready (have images)  : 275
+
+Final class distribution:
+  general_medicine       275
+
+Raw categories found in scrape:
+  - Medicine
