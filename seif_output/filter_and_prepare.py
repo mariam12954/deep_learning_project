@@ -1,15 +1,18 @@
 """
-================================
-Reads products_data.csv + images_index.csv
-and produces:
-  1. filtered_products.csv
-  2. dataset_report.txt
-================================
+filter_and_prepare.py  (v2 - bugs fixed)
+=========================================
+Reads:
+    seif_output/products_data.csv
+    seif_output/images_index.csv
+
+Produces:
+    seif_output/filtered_products.csv
+    seif_output/dataset_report.txt
 """
 
+import re
 import pandas as pd
 from pathlib import Path
-import re
 from collections import Counter
 from sklearn.preprocessing import LabelEncoder
 
@@ -21,7 +24,6 @@ FILTERED_CSV = OUTPUT_DIR / "filtered_products.csv"
 REPORT_TXT   = OUTPUT_DIR / "dataset_report.txt"
 # -----------------------------------------------------------------------------
 
-# -- Class keyword rules ------------------------------------------------------
 CLASS_RULES = {
     "heart": [
         "heart", "cardiac", "cardio", "warfarin", "digoxin", "nitroglycerin",
@@ -53,11 +55,32 @@ MEDICAL_FILTER = [
 ]
 
 MIN_SAMPLES_PER_CLASS = 10
-RARE_WORD_MIN_FREQ = 3
-MAX_WORDS = 50
+RARE_WORD_MIN_FREQ    = 3
+MAX_WORDS             = 50
 
 
-# ---------------------- Helper Functions -------------------------------------
+# -- Helpers ------------------------------------------------------------------
+
+def slugify(text: str) -> str:
+    # same logic used in seif_scraper_fixed.py so image_name matches real files
+    text = re.sub(r"[^\w\s-]", "", str(text).lower())
+    return re.sub(r"[\s_-]+", "_", text).strip("_")[:80]
+
+
+def clean_text(text: str) -> str:
+    text = "" if text is None else str(text)
+    text = text.lower()
+    text = re.sub(r"https?://\S+|www\.\S+", " ", text)
+    text = re.sub(r"[^a-zA-Z0-9\u0600-\u06FF\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def normalize_drug_name(name: str) -> str:
+    name = str(name).lower()
+    name = re.sub(r"\d+\s*mg|\d+\s*ml|\d+\s*mg/ml", "", name)
+    return name.strip()
+
 
 def classify(row) -> str:
     combined = " ".join([
@@ -66,7 +89,6 @@ def classify(row) -> str:
         str(row.get("category", "")),
         str(row.get("subcategory", "")),
     ]).lower()
-
     for class_name, keywords in CLASS_RULES.items():
         if any(kw in combined for kw in keywords):
             return class_name
@@ -83,131 +105,99 @@ def is_medical(row) -> bool:
     return any(kw in combined for kw in MEDICAL_FILTER)
 
 
-def clean_text(text: str) -> str:
-    text = "" if text is None else str(text)
-    text = text.lower()
-    text = re.sub(r"https?://\S+|www\.\S+", " ", text)
-    # for english and arabic text 
-    text = re.sub(r"[^a-zA-Z0-9\u0600-\u06FF\s]", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
-
-
-def normalize_drug_name(name):
-    name = str(name).lower()
-    name = re.sub(r"\d+mg|\d+\s*ml|\d+mg/ml", "", name)
-    return name.strip()
-
-
-# -----------------------------------------------------------------------------
+# -- Main ---------------------------------------------------------------------
 
 def main():
     print("=" * 55)
-    print("  Step 1 - Filter and Prepare Dataset")
+    print("  filter_and_prepare.py")
     print("=" * 55)
 
     if not PRODUCTS_CSV.exists():
-        print(f"\nERROR: {PRODUCTS_CSV} not found.")
+        print(f"ERROR: {PRODUCTS_CSV} not found. Run seif_scraper_fixed.py first.")
         return
 
     df = pd.read_csv(PRODUCTS_CSV, encoding="utf-8-sig")
-    print(f"\nLoaded -> {len(df)} rows")
+    print(f"Loaded products_data.csv -> {len(df)} rows")
 
-    # initial cleaning
-    
     for col in ("name", "description", "category", "subcategory"):
         if col in df.columns:
-            df[col] = df[col].astype("string").fillna("").str.strip()
+            df[col] = df[col].astype(str).fillna("").str.strip()
 
-    # Filter medical
+    # filter medical only
     df["is_medical"] = df.apply(is_medical, axis=1)
     df_med = df[df["is_medical"]].copy()
+    print(f"Medical only             -> {len(df_med)} rows")
 
-    print(f"Medical only -> {len(df_med)} rows")
-
-    # -------------------- TEXT PREPROCESSING --------------------
-
-    # combine text
+    # build combined text column
     df_med["text"] = (
         df_med["name"] + " " +
         df_med["description"] + " " +
         df_med["category"] + " " +
         df_med["subcategory"]
     )
-
     df_med["text"] = df_med["text"].apply(clean_text)
 
-    # remove duplicates
+    # drop duplicates and empty rows
     df_med = df_med.drop_duplicates(subset=["text"])
-
-    # remove empty
     df_med = df_med[df_med["text"].str.strip() != ""]
 
     # remove rare words
     tokens = df_med["text"].str.split()
     word_counts = Counter(word for row in tokens for word in row)
     common_words = {w for w, c in word_counts.items() if c >= RARE_WORD_MIN_FREQ}
-
-    def filter_words(t):
-        return " ".join([w for w in t.split() if w in common_words])
-
-    df_med["text"] = df_med["text"].apply(filter_words)
-
-    # limit text length
     df_med["text"] = df_med["text"].apply(
-        lambda x: " ".join(x.split()[:MAX_WORDS])
+        lambda t: " ".join(w for w in t.split() if w in common_words)
     )
 
-    # text length feature
-    df_med["text_length"] = df_med["text"].apply(lambda x: len(x.split()))
+    # cap text length
+    df_med["text"] = df_med["text"].apply(
+        lambda t: " ".join(t.split()[:MAX_WORDS])
+    )
 
-    # normalize names
-    df_med["name_clean"] = df_med["name"].apply(normalize_drug_name)
+    df_med["text_length"] = df_med["text"].apply(lambda t: len(t.split()))
+    df_med["name_clean"]  = df_med["name"].apply(normalize_drug_name)
 
-    # -------------------- LABELING --------------------
-
+    # assign labels
     df_med["label"] = df_med.apply(classify, axis=1)
     df_med["label"] = df_med["label"].fillna("general_medicine")
 
-    # -------------------- IMAGE FILTER --------------------
+    print("\nClass distribution (before image filter):")
+    for cls, cnt in df_med["label"].value_counts().items():
+        print(f"  {cls:<22} {cnt}")
 
+    # -- : cast downloaded column to string before compare ----------
     if IMAGES_CSV.exists():
-        df_img = pd.read_csv(IMAGES_CSV)
-        df_img = df_img[df_img["downloaded"] == True]
+        df_img = pd.read_csv(IMAGES_CSV, encoding="utf-8-sig")
+        df_img = df_img[df_img["downloaded"].astype(str).str.lower() == "true"]
 
         img_set = set(df_img["product_name"].str.lower().str.strip())
         df_med["has_image"] = df_med["name"].str.lower().str.strip().isin(img_set)
 
+        print(f"\nWith images             : {df_med['has_image'].sum()}")
+        print(f"Without images (skipped): {(~df_med['has_image']).sum()}")
+
         df_cnn = df_med[df_med["has_image"]].copy()
     else:
+        print("WARNING: images_index.csv not found - skipping image filter")
         df_cnn = df_med.copy()
         df_cnn["has_image"] = False
 
-    # -------------------- BALANCE --------------------
-
+    # merge small classes into general_medicine
     class_counts = df_cnn["label"].value_counts()
-    small = class_counts[class_counts < MIN_SAMPLES_PER_CLASS].index
+    small = class_counts[class_counts < MIN_SAMPLES_PER_CLASS].index.tolist()
+    if small:
+        print(f"\nMerging into general_medicine (too few samples): {small}")
+        for cls in small:
+            df_cnn.loc[df_cnn["label"] == cls, "label"] = "general_medicine"
 
-    for cls in small:
-        df_cnn.loc[df_cnn["label"] == cls, "label"] = "general_medicine"
-
-    # -------------------- ENCODING --------------------
-
+    # encode labels
     le = LabelEncoder()
     df_cnn["label_encoded"] = le.fit_transform(df_cnn["label"])
 
-    # -------------------- IMAGE NAME --------------------
+    # -- : use slugify to match the real filenames from scraper ------
+    df_cnn["image_name"] = df_cnn["name"].apply(slugify) + "_1.jpg"
 
-    df_cnn["image_name"] = (
-        df_cnn["name"]
-        .str.lower()
-        .str.replace(" ", "_")
-        .str.replace(r"[^\w]", "", regex=True)
-        + ".jpg"
-    )
-
-    # -------------------- FINAL --------------------
-
+    # final columns
     df_final = df_cnn[[
         "name",
         "name_clean",
@@ -216,28 +206,34 @@ def main():
         "label",
         "label_encoded",
         "has_image",
-        "image_name"
-    ]]
+        "image_name",
+    ]].reset_index(drop=True)
 
     df_final.to_csv(FILTERED_CSV, index=False, encoding="utf-8-sig")
-
     print(f"\nSaved -> {FILTERED_CSV}")
 
-    # Report
-    report = [
-        f"Total: {len(df)}",
-        f"Medical: {len(df_med)}",
-        f"CNN-ready: {len(df_cnn)}",
+    # write report
+    lines = [
+        "=" * 55,
+        "  Dataset Report",
+        "=" * 55,
+        f"Total scraped    : {len(df)}",
+        f"Medical only     : {len(df_med)}",
+        f"CNN-ready        : {len(df_cnn)}",
         "",
-        "Classes:"
+        "Final class distribution:",
     ]
-
     for cls, cnt in df_cnn["label"].value_counts().items():
-        report.append(f"{cls}: {cnt}")
+        lines.append(f"  {cls:<22} {cnt}")
+    lines += ["", "Next step: python organize_dataset.py"]
 
-    REPORT_TXT.write_text("\n".join(report))
+    REPORT_TXT.write_text("\n".join(lines), encoding="utf-8")
+    print(f"Saved -> {REPORT_TXT}")
+    print("\n" + "\n".join(lines))
 
-    print("\nDone ✅")
+    print("\n" + "=" * 55)
+    
+    print("=" * 55)
 
 
 if __name__ == "__main__":
