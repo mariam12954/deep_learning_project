@@ -1,11 +1,9 @@
 =======================================================
   Dataset Report
 =======================================================
-Total scraped    : 559
-Medical only     : 273
-CNN-ready        : 269
+Total rows       : 262
 
-Final class distribution:
-  general_medicine       269
+Class distribution:
+  heart                  262
 
-Next step: python organize_dataset.py
+Next step: python organize_dataset_v2.py
