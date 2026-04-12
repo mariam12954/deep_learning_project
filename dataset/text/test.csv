@@ -1,0 +1,42 @@
+﻿name,name_clean,text,text_length,label,label_encoded
+Face,face,face download app now medicine,5,general_medicine,0
+Hair Removal Products,hair removal products,hair products download app now medicine,6,general_medicine,0
+Hair Cure & Lice Treatment,hair cure & lice treatment,hair treatment download app now medicine,6,general_medicine,0
+Insoles & Foot Health,insoles & foot health,foot health download app now skin care,7,general_medicine,0
+Bronchodilator,bronchodilator,download app now medicine,4,general_medicine,0
+Hair Oil & Serum,hair oil & serum,hair download app now medicine,5,general_medicine,0
+Hair Styling,hair styling,hair download app now medicine,5,general_medicine,0
+Anti-Catarrhals,anti-catarrhals,anti download app now medicine,5,general_medicine,0
+Diabetes Care,diabetes care,care download app now medicine,5,general_medicine,0
+Baby Nutrition,baby nutrition,baby nutrition download app now medicine,6,general_medicine,0
+Scars & Stretchmarks,scars & stretchmarks,download app now medicine,4,general_medicine,0
+Central Nervous System,central nervous system,system download app now medicine,5,general_medicine,0
+Lozenges,lozenges,download app now medicine,4,general_medicine,0
+Cardio-Vascular System,cardio-vascular system,system download app now medicine,5,general_medicine,0
+Facial Masks & Scrubs,facial masks & scrubs,download app now medicine,4,general_medicine,0
+Cerebral Stimulant,cerebral stimulant,download app now medicine,4,general_medicine,0
+Mom & Baby,mom & baby,mom baby download app now medicine,6,general_medicine,0
+Body Cologne,body cologne,body download app now medicine,5,general_medicine,0
+Anti-Ageing,anti-ageing,anti download app now medicine,5,general_medicine,0
+Circulatory Disturbance Agent,circulatory disturbance agent,download app now medicine,4,general_medicine,0
+Eye,eye,eye download app now medicine,5,general_medicine,0
+Wheel Chairs & Crutches,wheel chairs & crutches,download app now medicine,4,general_medicine,0
+Monoclonal Antibodies,monoclonal antibodies,download app now medicine,4,general_medicine,0
+Medical Soap,medical soap,medical download app now skin care,6,general_medicine,0
+Body Wash,body wash,body download app now medicine,5,general_medicine,0
+Multivitamins,multivitamins,download app now medicine,4,general_medicine,0
+Anti- Fungals,anti- fungals,anti download app now medicine,5,general_medicine,0
+Musculo-Skeletal System,musculo-skeletal system,system download app now medicine,5,general_medicine,0
+Nail,nail,download app now medicine,4,general_medicine,0
+Deodrant Stick,deodrant stick,deodrant download app now medicine,5,general_medicine,0
+Baby Health Care,baby health care,baby health care download app now skin care,8,general_medicine,0
+Dental Floss,dental floss,download app now medicine,4,general_medicine,0
+Mom Care,mom care,mom care download app now medicine,6,general_medicine,0
+Anti-Metabolites,anti-metabolites,anti download app now medicine,5,general_medicine,0
+Urinary Tract Antiseptic,urinary tract antiseptic,tract download app now medicine,5,general_medicine,0
+Food & Beverages,food & beverages,download app now medicine,4,general_medicine,0
+Ear Preparation,ear preparation,download app now medicine,4,general_medicine,0
+Prostatic Hyperplasia,prostatic hyperplasia,download app now medicine,4,general_medicine,0
+Topical Treatment Of The Mouth,topical treatment of the mouth,topical treatment download app now medicine,6,general_medicine,0
+General Anaesthetic,general anaesthetic,anaesthetic download app now medicine,5,general_medicine,0
+"Eye,Ear,Nose","eye,ear,nose",eye download app now medicine,5,general_medicine,0
