@@ -1,9 +1,0 @@
-=======================================================
-  Dataset Report
-=======================================================
-Total rows       : 262
-
-Class distribution:
-  heart                  262
-
-Next step: python organize_dataset_v2.py
