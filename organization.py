@@ -7,9 +7,12 @@ Reads flat image folder  ->  dataset/images/<merged_class>/
 - Keeps only medicine images (excludes all cosmetics, brands, baby care, etc.)
 - Merges small classes (<20 images) into broader therapeutic groups
 - Drops any class that remains empty after filtering
-- Writes a summary report to dataset/text/class_report.txt
+- Writes a summary report  to dataset/text/class_report.txt
+- Writes class descriptions to dataset/text/class_descriptions.json
+  (used by the camera inference module to display drug info at runtime)
 """
 
+import json
 import re
 import shutil
 from pathlib import Path
@@ -18,28 +21,105 @@ from collections import defaultdict
 # ---------------------------------------------------------------------------
 # CONFIG
 # ---------------------------------------------------------------------------
-from pathlib import Path
 
-BASE_DIR   = Path(__file__).resolve().parent   # فولدر المشروع نفسه
-SOURCE_DIR = BASE_DIR / "images"               # المشروع/images
-OUTPUT_DIR = BASE_DIR / "dataset"             # المشروع/dataset
-#SOURCE_DIR = r"C:\Users\dell\Desktop\project\images"
-#OUTPUT_DIR = r"C:\Users\dell\Desktop\project\dataset"
+BASE_DIR   = Path(__file__).resolve().parent
+SOURCE_DIR = BASE_DIR / "images"
+OUTPUT_DIR = BASE_DIR / "dataset"
 
-MIN_IMAGES_PER_CLASS = 20        # classes below this threshold get merged
+MIN_IMAGES_PER_CLASS = 20
 
 IMAGE_EXTS = {".webp", ".jpg", ".jpeg", ".png", ".jfif"}
 
 # ---------------------------------------------------------------------------
+# CLASS DESCRIPTIONS
+# Loaded at runtime by the camera module to display drug info.
+# Each entry: { "description": "...", "note": "..." }
+# ---------------------------------------------------------------------------
+
+CLASS_INFO: dict[str, dict[str, str]] = {
+    "gastrointestinal": {
+        "description": "Used to treat digestive system disorders such as acidity, ulcers, nausea, and diarrhea.",
+        "note": "Take as directed; some may require use before meals.",
+    },
+    "cns_neurology_psychiatry": {
+        "description": "Used for conditions affecting the brain and nervous system such as depression, anxiety, epilepsy, and neurological disorders.",
+        "note": "May cause drowsiness; do not stop abruptly without medical advice.",
+    },
+    "steroids_topicals": {
+        "description": "Topical medications used to reduce inflammation and treat skin conditions like eczema and rashes.",
+        "note": "Avoid prolonged use; apply only to affected areas.",
+    },
+    "cardiovascular_blood": {
+        "description": "Used to manage heart conditions and blood-related disorders such as hypertension, clotting, and cholesterol.",
+        "note": "Regular monitoring is important; follow dosage strictly.",
+    },
+    "respiratory_cough": {
+        "description": "Used to relieve cough, asthma, and other respiratory tract conditions.",
+        "note": "Some may cause drowsiness; avoid overdosing.",
+    },
+    "hormones_reproductive": {
+        "description": "Used for hormonal regulation, fertility, and reproductive health conditions.",
+        "note": "Use under medical supervision; may affect hormonal balance.",
+    },
+    "antibiotics_anti_infectives": {
+        "description": "Used to treat bacterial and microbial infections.",
+        "note": "Complete the full course; do not misuse or overuse.",
+    },
+    "diabetes_endocrine": {
+        "description": "Used to control blood sugar levels and treat endocrine disorders.",
+        "note": "Monitor glucose regularly; follow diet recommendations.",
+    },
+    "analgesics_pain_fever": {
+        "description": "Used to relieve pain and reduce fever.",
+        "note": "Do not exceed recommended dose; risk of liver damage if overused.",
+    },
+    "eye_ear_nose_preparations": {
+        "description": "Used to treat infections and conditions related to eyes, ears, and nose.",
+        "note": "Use hygienically; avoid contamination of applicators.",
+    },
+    "musculoskeletal": {
+        "description": "Used for muscle pain, joint disorders, and inflammation.",
+        "note": "May cause stomach irritation; take with food if needed.",
+    },
+    "vitamins_supplements": {
+        "description": "Used to support general health and treat vitamin deficiencies.",
+        "note": "Not a substitute for a balanced diet.",
+    },
+    "anaesthetics_speciality": {
+        "description": "Used to numb pain during medical or surgical procedures.",
+        "note": "Administered under professional supervision only.",
+    },
+    "immunology": {
+        "description": "Used to support or regulate the immune system.",
+        "note": "May affect immune response; follow medical advice.",
+    },
+    "anti_fungals": {
+        "description": "Used to treat fungal infections of the skin or body.",
+        "note": "Continue treatment even after symptoms improve.",
+    },
+    "oncology": {
+        "description": "Used in the treatment of cancer and tumor-related conditions.",
+        "note": "Requires strict medical supervision; may have strong side effects.",
+    },
+    "weight_metabolism": {
+        "description": "Used to manage weight and metabolic disorders.",
+        "note": "Combine with diet and exercise for best results.",
+    },
+    "dermatology": {
+        "description": "Used to treat skin conditions such as acne, infections, and inflammation.",
+        "note": "Avoid excessive use; follow application instructions.",
+    },
+    "general_medicine": {
+        "description": "General-purpose medications used for common health conditions.",
+        "note": "Use as directed; consult a doctor if symptoms persist.",
+    },
+}
+
+# ---------------------------------------------------------------------------
 # MERGE MAP
-# Each key is the TARGET class name.
-# Each value is a list of SOURCE class names that will be merged into it.
-# Classes not listed here that pass the MIN threshold keep their own folder.
 # ---------------------------------------------------------------------------
 
 MERGE_MAP = {
-
-    # ---- ANALGESICS / PAIN / FEVER / RHEUMATIC ---------------------------
     "analgesics_pain_fever": [
         "analgesic_a_rheumatic",
         "analgesica_rheumatic",
@@ -49,8 +129,6 @@ MERGE_MAP = {
         "other_anti_rheumatics",
         "gout_treatment",
     ],
-
-    # ---- ANTIBIOTICS / ANTI-INFECTIVES -----------------------------------
     "antibiotics_anti_infectives": [
         "anti_biotics",
         "infections",
@@ -63,8 +141,6 @@ MERGE_MAP = {
         "topical_anti_viral",
         "scabies_lice",
     ],
-
-    # ---- STEROIDS / ANTI-INFLAMMATORY TOPICALS ---------------------------
     "steroids_topicals": [
         "steroid",
         "steroid_anti_biotic",
@@ -72,7 +148,7 @@ MERGE_MAP = {
         "topical_steroid_anti_biotic",
         "anti_fungal_steroid",
         "topical_prepareation",
-        "topical_anti_biotic",           # also antibiotics but mostly topical overlap
+        "topical_anti_biotic",
         "gluco_corticoid",
         "anti_acne",
         "acne_preparations",
@@ -81,8 +157,6 @@ MERGE_MAP = {
         "vitiligo_treatment",
         "wartsanti_corn_preparations",
     ],
-
-    # ---- EYE / EAR / NOSE PREPARATIONS ----------------------------------
     "eye_ear_nose_preparations": [
         "eye",
         "eyeearnose",
@@ -94,14 +168,10 @@ MERGE_MAP = {
         "glaucoma_treatment",
         "mydriatics",
     ],
-
-    # ---- ANTI-FUNGALS ----------------------------------------------------
     "anti_fungals": [
         "anti_fungals",
         "anti_dandruff",
     ],
-
-    # ---- GASTROINTESTINAL -----------------------------------------------
     "gastrointestinal": [
         "gastro_intestinal_tract",
         "antacids",
@@ -115,8 +185,6 @@ MERGE_MAP = {
         "haemorrhoids_anal_fissures",
         "liver_disease_management",
     ],
-
-    # ---- RESPIRATORY / COUGH / BRONCHO ----------------------------------
     "respiratory_cough": [
         "respiratory_system",
         "bronchodilator",
@@ -127,8 +195,6 @@ MERGE_MAP = {
         "lozenges",
         "topical_treatment_of_the_mouth",
     ],
-
-    # ---- CARDIOVASCULAR / BLOOD -----------------------------------------
     "cardiovascular_blood": [
         "cardio_vascular_system",
         "anti_hypertensives",
@@ -144,8 +210,6 @@ MERGE_MAP = {
         "varicose_veins",
         "anaemia",
     ],
-
-    # ---- DIABETES / ENDOCRINE -------------------------------------------
     "diabetes_endocrine": [
         "diabetes_care",
         "insulins",
@@ -156,8 +220,6 @@ MERGE_MAP = {
         "growth_hormone",
         "anabolic",
     ],
-
-    # ---- CNS / NEUROLOGY / PSYCHIATRY -----------------------------------
     "cns_neurology_psychiatry": [
         "central_nervous_system",
         "cerebral_stimulant",
@@ -173,24 +235,18 @@ MERGE_MAP = {
         "nocturnal_enuresis",
         "mytonics",
     ],
-
-    # ---- VITAMINS / SUPPLEMENTS -----------------------------------------
     "vitamins_supplements": [
         "vitamins_or_minerals",
         "multivitamins",
         "nutrition_supplements",
         "nutrientsblood_electrolytes",
     ],
-
-    # ---- MUSCULOSKELETAL ------------------------------------------------
     "musculoskeletal": [
         "musculo_skeletal_system",
         "skeletal_muscle_relaxant",
         "osteoporosis_arthritis_manag",
         "osteoporosisarthritis_manag",
     ],
-
-    # ---- ONCOLOGY -------------------------------------------------------
     "oncology": [
         "cancer_therapy",
         "alkylating_agent",
@@ -202,8 +258,6 @@ MERGE_MAP = {
         "interferons",
         "neutropenia",
     ],
-
-    # ---- HORMONES / REPRODUCTIVE ----------------------------------------
     "hormones_reproductive": [
         "female_sex_hormones",
         "male_sex_horm_androgens",
@@ -215,16 +269,12 @@ MERGE_MAP = {
         "anti_galactorrhoea",
         "male_sexual_tonics",
     ],
-
-    # ---- IMMUNOLOGY -----------------------------------------------------
     "immunology": [
         "immunological_system",
         "immuno_suppresives",
         "immunomodulator",
         "vaccines",
     ],
-
-    # ---- ANAESTHETICS / SPECIALITY --------------------------------------
     "anaesthetics_speciality": [
         "general_anaesthetic",
         "local_anaesthetic",
@@ -234,20 +284,14 @@ MERGE_MAP = {
         "plasma_substituent_expander",
         "plasma_substituentexpander",
     ],
-
-    # ---- DERMATOLOGY (SYSTEMIC / ORAL) ----------------------------------
     "dermatology": [
         "anti_histaminesanti_inflam",
     ],
-
-    # ---- WEIGHT / METABOLISM --------------------------------------------
     "weight_metabolism": [
         "weight_control_fitness",
         "nicotine_replacement_therapy",
         "alopecia_treatment",
     ],
-
-    # ---- GENERAL MEDICINE -----------------------------------------------
     "general_medicine": [
         "medicine",
     ],
@@ -273,8 +317,8 @@ def extract_class(filename: str) -> str:
 # STEP 1 – organize images into merged class folders
 # ---------------------------------------------------------------------------
 
-def organize_images() -> dict[str, int]:
-    source    = Path(SOURCE_DIR)
+def organize_images() -> tuple[dict[str, int], int]:
+    source     = Path(SOURCE_DIR)
     images_dir = Path(OUTPUT_DIR) / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
 
@@ -289,7 +333,6 @@ def organize_images() -> dict[str, int]:
         target    = SOURCE_TO_TARGET.get(raw_class)
 
         if target is None:
-            # Class is not medicine or not mapped -> skip
             skipped += 1
             continue
 
@@ -327,26 +370,26 @@ def remove_small_classes(copied: dict[str, int]) -> dict[str, int]:
 def write_report(final: dict[str, int], removed: dict[str, int], skipped: int):
     text_dir = Path(OUTPUT_DIR) / "text"
     text_dir.mkdir(parents=True, exist_ok=True)
-    report_path = text_dir / "class_report.txt"
 
+    # ---- class_report.txt ----
+    report_path = text_dir / "class_report.txt"
     lines = []
     lines.append("=" * 60)
-    lines.append("  Safe Pharmacy – Dataset Class Report")
+    lines.append("  Safe Pharmacy - Dataset Class Report")
     lines.append("=" * 60)
-    lines.append(f"\nFinal classes  : {len(final)}")
-    lines.append(f"Total images   : {sum(final.values())}")
-    lines.append(f"Non-medicine   : {skipped} images excluded")
+    lines.append(f"\nFinal classes : {len(final)}")
+    lines.append(f"Total images  : {sum(final.values())}")
+    lines.append(f"Non-medicine  : {skipped} images excluded")
     lines.append(f"Removed (< {MIN_IMAGES_PER_CLASS} images): {len(removed)} classes\n")
-
     lines.append("-" * 40)
-    lines.append("  FINAL CLASSES  (sorted by image count desc)")
+    lines.append("  FINAL CLASSES (sorted by image count desc)")
     lines.append("-" * 40)
     for cls, count in sorted(final.items(), key=lambda x: -x[1]):
         lines.append(f"  {cls:<45} {count:>4} images")
 
     if removed:
         lines.append("\n" + "-" * 40)
-        lines.append("  REMOVED CLASSES  (too few images after merge)")
+        lines.append("  REMOVED CLASSES (too few images after merge)")
         lines.append("-" * 40)
         for cls, count in sorted(removed.items(), key=lambda x: -x[1]):
             lines.append(f"  {cls:<45} {count:>4} images")
@@ -356,6 +399,20 @@ def write_report(final: dict[str, int], removed: dict[str, int], skipped: int):
     print(report_text)
     print(f"\n  Report saved to: {report_path}")
 
+    # ---- class_descriptions.json ----
+    # Only write entries for classes that actually exist in the final dataset.
+    active_info = {
+        cls: CLASS_INFO[cls]
+        for cls in final
+        if cls in CLASS_INFO
+    }
+    desc_path = text_dir / "class_descriptions.json"
+    desc_path.write_text(
+        json.dumps(active_info, indent=4, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    print(f"  Descriptions saved to: {desc_path}")
+
 
 # ---------------------------------------------------------------------------
 # MAIN
@@ -363,12 +420,11 @@ def write_report(final: dict[str, int], removed: dict[str, int], skipped: int):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("  Safe Pharmacy – organize.py")
+    print("  Safe Pharmacy - organize.py")
     print("=" * 60)
 
     print("\n[1/3] Copying images to merged class folders ...")
     copied, skipped = organize_images()
-
     print(f"      Copied {sum(copied.values())} medicine images into {len(copied)} merged classes.")
     print(f"      Skipped {skipped} non-medicine images.")
 
@@ -379,8 +435,10 @@ if __name__ == "__main__":
     else:
         print("      No classes removed.")
 
-    print("\n[3/3] Writing class report ...")
+    print("\n[3/3] Writing class report and descriptions ...")
     write_report(copied, removed, skipped)
 
     print("\n  Done. Dataset images are in:")
     print(f"    {Path(OUTPUT_DIR) / 'images'}")
+    print("\n  Class descriptions (for camera module) are in:")
+    print(f"    {Path(OUTPUT_DIR) / 'text' / 'class_descriptions.json'}")

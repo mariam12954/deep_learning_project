@@ -1,14 +1,14 @@
 ============================================================
-  Safe Pharmacy – Dataset Class Report
+  Safe Pharmacy - Dataset Class Report
 ============================================================
 
-Final classes  : 19
-Total images   : 2082
-Non-medicine   : 2681 images excluded
+Final classes : 19
+Total images  : 2082
+Non-medicine  : 2681 images excluded
 Removed (< 20 images): 0 classes
 
 ----------------------------------------
-  FINAL CLASSES  (sorted by image count desc)
+  FINAL CLASSES (sorted by image count desc)
 ----------------------------------------
   gastrointestinal                               242 images
   cns_neurology_psychiatry                       236 images
