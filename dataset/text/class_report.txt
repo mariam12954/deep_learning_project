@@ -1,31 +1,29 @@
 ============================================================
-  Safe Pharmacy - Dataset Class Report
+  Safe Pharmacy - Dataset Class Report  (v2: 11 classes)
 ============================================================
 
-Final classes : 19
-Total images  : 2082
-Non-medicine  : 2681 images excluded
+Final classes : 11
+Total images  : 2029
+Non-medicine  : 2734 images excluded
 Removed (< 20 images): 0 classes
 
 ----------------------------------------
   FINAL CLASSES (sorted by image count desc)
 ----------------------------------------
-  gastrointestinal                               242 images
-  cns_neurology_psychiatry                       236 images
-  steroids_topicals                              206 images
-  cardiovascular_blood                           194 images
-  respiratory_cough                              166 images
-  hormones_reproductive                          150 images
-  antibiotics_anti_infectives                    146 images
-  diabetes_endocrine                             127 images
-  analgesics_pain_fever                          126 images
-  eye_ear_nose_preparations                      118 images
-  musculoskeletal                                 59 images
-  vitamins_supplements                            57 images
-  anaesthetics_speciality                         56 images
-  immunology                                      47 images
-  anti_fungals                                    42 images
-  oncology                                        33 images
-  weight_metabolism                               30 images
-  dermatology                                     24 images
-  general_medicine                                23 images
+  respiratory_digestive                     408 images
+  neuro_musculo                             295 images
+  infections_immunity                       251 images
+  hormones_oncology                         233 images
+  cardiovascular_blood                      194 images
+  steroids_topicals                         128 images
+  diabetes_endocrine                        127 images
+  analgesics_pain_fever                     126 images
+  eye_ear_nose_preparations                 124 images
+  dermatology                                86 images
+  vitamins_supplements                       57 images
+
+----------------------------------------
+  DROPPED BY DESIGN (0% diagnostic accuracy)
+----------------------------------------
+  general_medicine   — 0.0% acc, unrecognisable by model
+  weight_metabolism  — 0.0% acc, only 30 original images

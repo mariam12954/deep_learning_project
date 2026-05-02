@@ -1,0 +1,60 @@
+===========================================================================
+  Safe Pharmacy — Per-Class Accuracy Report (Frozen Baseline)
+===========================================================================
+
+  Overall Train Accuracy : 62.39%
+  Overall Val  Accuracy  : 36.18%
+  Overall Test Accuracy  : 36.12%
+  Train/Val Gap          : 26.21%
+
+  FLAGS:
+    [OVERFIT] = val_f1 is 20%+ lower than test_f1
+    [LOW ACC] = per-class test accuracy < 40%
+
+---------------------------------------------------------------------------
+  Class                             Train   Acc%  Prec%   Rec%   F1%  valF1   Gap  Flags
+---------------------------------------------------------------------------
+  general_medicine                    162   0.0%   0.0%   0.0%  0.0%   0.0%  +0.0%  [LOW ACC]
+  weight_metabolism                   216   0.0%   0.0%   0.0%  0.0%   0.0%  +0.0%  [LOW ACC]
+  hormones_reproductive               354   6.7%   7.1%   6.7%  6.9%  60.6% -53.7%  [LOW ACC]
+  antibiotics_anti_infectives         348  18.8%  20.0%  18.8% 19.4%  18.2%  +1.2%  [LOW ACC]
+  anti_fungals                        231  20.0%  16.7%  20.0% 18.2%   0.0% +18.2%  [LOW ACC]
+  cns_neurology_psychiatry            564  28.0%  50.0%  28.0% 35.9%  31.2%  +4.6%  [LOW ACC]
+  gastrointestinal                    576  28.0%  28.0%  28.0% 28.0%  31.1%  -3.1%  [LOW ACC]
+  anaesthetics_speciality             220  28.6%  66.7%  28.6% 40.0%  16.7% +23.3%  [OVERFIT] [LOW ACC]
+  musculoskeletal                     235  28.6%  25.0%  28.6% 26.7%  28.6%  -1.9%  [LOW ACC]
+  respiratory_cough                   396  33.3%  30.0%  33.3% 31.6%  45.7% -14.1%  [LOW ACC]
+  analgesics_pain_fever               300  35.7%  35.7%  35.7% 35.7%  45.5%  -9.7%  [LOW ACC]
+  cardiovascular_blood                465  40.0%  33.3%  40.0% 36.4%  35.0%  +1.4%  
+  steroids_topicals                   483  45.5%  55.6%  45.5% 50.0%  47.6%  +2.4%  
+  immunology                          222  50.0%  50.0%  50.0% 50.0%  28.6% +21.4%  [OVERFIT] 
+  oncology                            208  50.0%  28.6%  50.0% 36.4%   0.0% +36.4%  [OVERFIT] 
+  diabetes_endocrine                  303  57.1%  61.5%  57.1% 59.3%  40.0% +19.3%  
+  vitamins_supplements                225  57.1%  36.4%  57.1% 44.4%  66.7% -22.2%  
+  dermatology                         171  66.7%  40.0%  66.7% 50.0%   0.0% +50.0%  [OVERFIT] 
+  eye_ear_nose_preparations           282  84.6%  73.3%  84.6% 78.6%  72.7%  +5.8%  
+
+===========================================================================
+  RECOMMENDATIONS
+===========================================================================
+
+  CONSIDER DROPPING (acc < 20%) — too few or too similar images:
+    - antibiotics_anti_infectives  (train=348, acc=18.8%)
+    - general_medicine  (train=162, acc=0.0%)
+    - hormones_reproductive  (train=354, acc=6.7%)
+    - weight_metabolism  (train=216, acc=0.0%)
+
+  LOW ACCURACY classes (20-40%) — need more images or merge:
+    - anaesthetics_speciality  (train=220, acc=28.6%)
+    - analgesics_pain_fever  (train=300, acc=35.7%)
+    - anti_fungals  (train=231, acc=20.0%)
+    - cns_neurology_psychiatry  (train=564, acc=28.0%)
+    - gastrointestinal  (train=576, acc=28.0%)
+    - musculoskeletal  (train=235, acc=28.6%)
+    - respiratory_cough  (train=396, acc=33.3%)
+
+  OVERFIT classes — val_f1 much lower than test_f1:
+    - anaesthetics_speciality  (gap=+23.3%)
+    - dermatology  (gap=+50.0%)
+    - immunology  (gap=+21.4%)
+    - oncology  (gap=+36.4%)

@@ -3,27 +3,19 @@ split_and_preprocess.py
 =======================
 Step 2 of the Safe Pharmacy pipeline.
 
-Reads  dataset/images/<class>/
-->     dataset/split/train|val|test/<class>/      (raw copies, 80/10/10)
-->     dataset/processed/train|val|test/<class>/  (resized 224x224 + augmentation on train)
+Key improvement: targeted augmentation per class.
+Instead of a fixed copies count, each class gets enough copies
+to reach TARGET_PER_CLASS. This reduces the 10x imbalance without
+discarding any images, and without making the dataset unnecessarily large.
 
-Why this order matters
-----------------------
+Augmentation tiers (approximate after split):
+    Healthy  (>= 100 original) -> 2-3 copies -> ~200-400 train images
+    Low      (40-99  original) -> 4-5 copies -> ~160-280 train images
+    Critical (<  40  original) -> 6-8 copies -> ~120-190 train images
+
 Split first, augment after:
-  - Augmented images are generated ONLY from training images.
-  - Validation and test sets stay clean (no augmented versions leak in).
-  - This gives an honest evaluation of real-world performance.
-
-Why augmentation on train only
--------------------------------
-  - Artificially increases training variety (rotation, flip, brightness, crop).
-  - Helps the model generalise to different lighting, angles, and packaging.
-  - Validation/test must reflect real unseen images, so they are only resized.
-
-Why resize to 224x224
-----------------------
-  - Standard input size for MobileNetV2, VGG16, ResNet50, EfficientNet, etc.
-  - Ensures all images are uniform before feeding into the models.
+    Val and test always stay clean (original images only).
+    This prevents data leakage and gives honest per-class accuracy.
 """
 
 import random
@@ -45,11 +37,10 @@ SAVE_QUALITY = 95
 
 TRAIN_RATIO = 0.80
 VAL_RATIO   = 0.10
-# TEST_RATIO is the remainder: 1.0 - 0.80 - 0.10 = 0.10
 
-AUGMENT_TRAIN  = True
-AUGMENT_COPIES = 2   # each training image produces 2 extra augmented copies
-                     # raise to 3 for classes with fewer than 50 images
+AUGMENT_TRAIN    = True
+TARGET_PER_CLASS = 300   # raised from 200 — 11 classes need more copies per class
+MAX_COPIES       = 10    # raised from 8 — small classes (vitamins=57) need up to 10x
 
 IMAGE_EXTS  = {".webp", ".jpg", ".jpeg", ".png", ".jfif"}
 RANDOM_SEED = 42
@@ -60,26 +51,29 @@ RANDOM_SEED = 42
 
 def random_augment(img: Image.Image) -> Image.Image:
     """
-    Applies a random combination of safe augmentations for drug/pharmacy images.
-    Each operation has a 50% chance of being applied.
-    Keeps packaging readable (no heavy distortion or colour inversion).
+    Safe augmentations for drug packaging images.
+    Each transform has a 50% chance of applying.
+    No extreme distortion — packaging text must stay readable.
     """
     if random.random() > 0.5:
         img = ImageOps.mirror(img)
 
     if random.random() > 0.5:
-        angle = random.uniform(-12, 12)
+        angle = random.uniform(-15, 15)
         img = img.rotate(angle, resample=Image.BILINEAR, expand=False)
 
     if random.random() > 0.5:
-        img = ImageEnhance.Brightness(img).enhance(random.uniform(0.8, 1.2))
+        img = ImageEnhance.Brightness(img).enhance(random.uniform(0.75, 1.25))
 
     if random.random() > 0.5:
-        img = ImageEnhance.Contrast(img).enhance(random.uniform(0.85, 1.15))
+        img = ImageEnhance.Contrast(img).enhance(random.uniform(0.8, 1.2))
+
+    if random.random() > 0.5:
+        img = ImageEnhance.Saturation(img).enhance(random.uniform(0.8, 1.2))
 
     if random.random() > 0.5:
         w, h = img.size
-        crop = random.uniform(0.85, 1.0)
+        crop = random.uniform(0.82, 1.0)
         left = int(w * (1 - crop) / 2)
         top  = int(h * (1 - crop) / 2)
         img  = img.crop((left, top, w - left, h - top))
@@ -103,15 +97,29 @@ def open_and_resize(src: Path) -> Image.Image:
         return im.copy()
 
 
+def compute_aug_copies(n_train: int) -> int:
+    """
+    How many augmented copies per image for this class?
+    Ceiling division: copies = ceil((TARGET - n) / n), capped at MAX_COPIES.
+    If the class is already at or above TARGET, returns 0 (no augmentation needed).
+    """
+    if n_train == 0:
+        return 0
+    if n_train >= TARGET_PER_CLASS:
+        return 0
+    needed = TARGET_PER_CLASS - n_train
+    copies = (needed + n_train - 1) // n_train
+    return min(copies, MAX_COPIES)
+
+
 # ---------------------------------------------------------------------------
-# STEP 1 – SPLIT
+# STEP 1 — SPLIT
 # ---------------------------------------------------------------------------
 
 def split_images() -> tuple[dict, dict]:
     """
     Copies images from dataset/images/<cls>/ into dataset/split/train|val|test/<cls>/.
-    No resizing or augmentation here — just a clean stratified split per class.
-    Returns overall totals and per-class counts.
+    Splitting happens on original images only — no resizing or augmentation here.
     """
     random.seed(RANDOM_SEED)
 
@@ -121,7 +129,7 @@ def split_images() -> tuple[dict, dict]:
     if not images_dir.exists():
         raise FileNotFoundError(
             f"Folder not found: {images_dir}\n"
-            "Run organize.py first to prepare the dataset structure."
+            "Run organize.py first to prepare the dataset."
         )
 
     for s in ("train", "val", "test"):
@@ -130,9 +138,7 @@ def split_images() -> tuple[dict, dict]:
     totals    = {"train": 0, "val": 0, "test": 0}
     per_class = {}
 
-    class_dirs = sorted(d for d in images_dir.iterdir() if d.is_dir())
-
-    for cls_dir in class_dirs:
+    for cls_dir in sorted(d for d in images_dir.iterdir() if d.is_dir()):
         imgs = [f for f in cls_dir.iterdir() if f.suffix.lower() in IMAGE_EXTS]
         random.shuffle(imgs)
 
@@ -147,7 +153,6 @@ def split_images() -> tuple[dict, dict]:
         }
 
         per_class[cls_dir.name] = {}
-
         for split_name, files in splits.items():
             dest = split_base / split_name / cls_dir.name
             dest.mkdir(exist_ok=True)
@@ -161,22 +166,24 @@ def split_images() -> tuple[dict, dict]:
 
 def print_split_summary(totals: dict, per_class: dict):
     total_all = sum(totals.values())
-    print("\n" + "=" * 60)
-    print("  Split Summary")
-    print("=" * 60)
+    print("\n" + "=" * 68)
+    print("  Split Summary  (before augmentation)")
+    print("=" * 68)
     print(f"  Total  : {total_all}")
     print(f"  Train  : {totals['train']:>5}  ({totals['train']/total_all*100:.1f}%)")
     print(f"  Val    : {totals['val']:>5}  ({totals['val']/total_all*100:.1f}%)")
     print(f"  Test   : {totals['test']:>5}  ({totals['test']/total_all*100:.1f}%)")
-    print("\n" + "-" * 60)
-    print(f"  {'Class':<40} {'Train':>6} {'Val':>5} {'Test':>5}")
-    print("-" * 60)
-    for cls, c in sorted(per_class.items()):
-        print(f"  {cls:<40} {c['train']:>6} {c['val']:>5} {c['test']:>5}")
+    print("\n" + "-" * 68)
+    print(f"  {'Class':<40} {'Train':>6} {'Val':>5} {'Test':>5} {'Aug copies':>10}")
+    print("-" * 68)
+    for cls, c in sorted(per_class.items(), key=lambda x: -x[1]["train"]):
+        copies = compute_aug_copies(c["train"]) if AUGMENT_TRAIN else 0
+        tag    = "no aug needed" if copies == 0 else f"+{copies}x per image"
+        print(f"  {cls:<40} {c['train']:>6} {c['val']:>5} {c['test']:>5}   {tag}")
 
 
 # ---------------------------------------------------------------------------
-# STEP 2 – PREPROCESS
+# STEP 2 — PREPROCESS + TARGETED AUGMENTATION
 # ---------------------------------------------------------------------------
 
 def preprocess_split(split_name: str, augment: bool = False) -> int:
@@ -184,8 +191,8 @@ def preprocess_split(split_name: str, augment: bool = False) -> int:
     Reads   dataset/split/<split_name>/<cls>/
     Writes  dataset/processed/<split_name>/<cls>/
 
-    For train (augment=True): saves original resized + AUGMENT_COPIES augmented versions.
-    For val/test (augment=False): saves only the resized original.
+    Train: resize + targeted augmentation (more copies for smaller classes).
+    Val/Test: resize only — no augmentation (clean evaluation).
     """
     src_base = Path(OUTPUT_DIR) / "split"     / split_name
     dst_base = Path(OUTPUT_DIR) / "processed" / split_name
@@ -194,18 +201,21 @@ def preprocess_split(split_name: str, augment: bool = False) -> int:
         print(f"    Folder not found: {src_base}  (skipping)")
         return 0
 
-    class_dirs    = sorted(d for d in src_base.iterdir() if d.is_dir())
     total_written = 0
 
-    for cls_dir in class_dirs:
+    for cls_dir in sorted(d for d in src_base.iterdir() if d.is_dir()):
         dst_cls = dst_base / cls_dir.name
         dst_cls.mkdir(parents=True, exist_ok=True)
 
         images = [f for f in cls_dir.iterdir() if f.suffix.lower() in IMAGE_EXTS]
+        copies = compute_aug_copies(len(images)) if augment else 0
 
-        for img_path in tqdm(images, desc=f"  {split_name}/{cls_dir.name}", leave=False):
+        desc = f"  {split_name}/{cls_dir.name}"
+        if copies > 0:
+            desc += f" (+{copies}x aug)"
 
-            # Original resized copy
+        for img_path in tqdm(images, desc=desc, leave=False):
+
             try:
                 img = open_and_resize(img_path)
                 save_image(img, dst_cls / (img_path.stem + ".jpg"))
@@ -214,34 +224,43 @@ def preprocess_split(split_name: str, augment: bool = False) -> int:
                 print(f"\n    Skipping {img_path.name}: {e}")
                 continue
 
-            # Augmented copies (train only)
-            if augment and AUGMENT_TRAIN:
-                for i in range(AUGMENT_COPIES):
-                    try:
-                        aug = random_augment(open_and_resize(img_path))
-                        save_image(aug, dst_cls / f"{img_path.stem}_aug{i+1}.jpg")
-                        total_written += 1
-                    except Exception as e:
-                        print(f"\n    Augmentation error {img_path.name}: {e}")
+            for i in range(copies):
+                try:
+                    aug = random_augment(open_and_resize(img_path))
+                    save_image(aug, dst_cls / f"{img_path.stem}_aug{i+1}.jpg")
+                    total_written += 1
+                except Exception as e:
+                    print(f"\n    Aug error {img_path.name}: {e}")
 
-    print(f"   {split_name}: {total_written} images written -> {dst_base}")
+    print(f"   {split_name}: {total_written} total images -> {dst_base}")
     return total_written
 
 
 def print_processed_summary():
     base = Path(OUTPUT_DIR) / "processed"
-    print("\n" + "=" * 60)
-    print("  Processed Dataset Summary")
-    print("=" * 60)
+    print("\n" + "=" * 68)
+    print("  Processed Dataset Summary  (after augmentation)")
+    print("=" * 68)
     for s in ("train", "val", "test"):
         d = base / s
         if not d.exists():
             continue
-        total = sum(1 for f in d.rglob("*") if f.suffix == ".jpg")
-        n_cls = sum(1 for x in d.iterdir() if x.is_dir())
-        print(f"  {s:<8}: {total:>6} images  |  {n_cls} classes")
-    print("=" * 60)
-    print(f"\n  Processed dataset path (use this in your models):")
+        total     = sum(1 for f in d.rglob("*") if f.suffix == ".jpg")
+        n_cls     = sum(1 for x in d.iterdir() if x.is_dir())
+        cls_counts = sorted(
+            [(x.name, sum(1 for f in x.iterdir() if f.suffix == ".jpg"))
+             for x in d.iterdir() if x.is_dir()],
+            key=lambda x: x[1],
+        )
+        if s == "train" and cls_counts:
+            mn, mx = cls_counts[0][1], cls_counts[-1][1]
+            ratio  = mx / mn if mn > 0 else float("inf")
+            print(f"  {s:<8}: {total:>6} images | {n_cls} classes | "
+                  f"min {mn} / max {mx} per class | imbalance {ratio:.1f}x")
+        else:
+            print(f"  {s:<8}: {total:>6} images | {n_cls} classes")
+    print("=" * 68)
+    print(f"\n  Processed dataset path (use in models):")
     print(f"    {base}")
 
 
@@ -250,21 +269,22 @@ def print_processed_summary():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("  Safe Pharmacy - split_and_preprocess.py")
-    print("=" * 60)
+    print("=" * 68)
+    print("  Safe Pharmacy — split_and_preprocess.py")
+    print("=" * 68)
+    print(f"\n  TARGET_PER_CLASS = {TARGET_PER_CLASS} | MAX_COPIES = {MAX_COPIES}")
 
-    print("\n Splitting dataset (80 / 10 / 10) ...")
+    print("\n[1/4] Splitting dataset (80 / 10 / 10) ...")
     totals, per_class = split_images()
     print_split_summary(totals, per_class)
 
-    print("\n Preprocessing TRAIN (resize + augmentation) ...")
+    print("\n[2/4] Preprocessing TRAIN (resize + targeted augmentation) ...")
     preprocess_split("train", augment=True)
 
-    print("\n Preprocessing VAL (resize only) ...")
+    print("\n[3/4] Preprocessing VAL (resize only) ...")
     preprocess_split("val", augment=False)
 
-    print("\n Preprocessing TEST (resize only) ...")
+    print("\n[4/4] Preprocessing TEST (resize only) ...")
     preprocess_split("test", augment=False)
 
     print_processed_summary()
