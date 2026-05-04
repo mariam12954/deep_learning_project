@@ -1,14 +1,14 @@
 ============================================================
-  Safe Pharmacy - Dataset Class Report  (v2: 11 classes)
+  Safe Pharmacy - Dataset Report  (split: 70/20/10 split)
 ============================================================
 
 Final classes : 11
 Total images  : 2029
-Non-medicine  : 2734 images excluded
-Removed (< 20 images): 0 classes
+Non-medicine  : 2734 excluded
+Removed (< 20): 0 classes
 
 ----------------------------------------
-  FINAL CLASSES (sorted by image count desc)
+  FINAL CLASSES
 ----------------------------------------
   respiratory_digestive                     408 images
   neuro_musculo                             295 images
@@ -21,9 +21,3 @@ Removed (< 20 images): 0 classes
   eye_ear_nose_preparations                 124 images
   dermatology                                86 images
   vitamins_supplements                       57 images
-
-----------------------------------------
-  DROPPED BY DESIGN (0% diagnostic accuracy)
-----------------------------------------
-  general_medicine   — 0.0% acc, unrecognisable by model
-  weight_metabolism  — 0.0% acc, only 30 original images

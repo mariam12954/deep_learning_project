@@ -1,46 +1,46 @@
 {
     "dermatology": {
-        "description": "Used to treat skin conditions such as acne, infections, and inflammation.",
-        "note": "Avoid excessive use; follow application instructions."
+        "description": "Skin conditions — acne, eczema, etc.",
+        "note": "Follow application instructions."
     },
     "neuro_musculo": {
-        "description": "Used for neurological conditions, psychiatric disorders, muscle pain, and joint inflammation.",
-        "note": "May cause drowsiness; do not stop abruptly without medical advice."
+        "description": "Neurology, psychiatry, musculoskeletal.",
+        "note": "Do not stop abruptly without advice."
     },
     "hormones_oncology": {
-        "description": "Used for hormonal regulation, reproductive health, cancer treatment, and specialty medical procedures.",
-        "note": "Requires strict medical supervision; may have significant side effects."
+        "description": "Hormones, oncology, anaesthetics.",
+        "note": "Strict medical supervision required."
     },
     "diabetes_endocrine": {
-        "description": "Used to control blood sugar levels and treat endocrine disorders.",
-        "note": "Monitor glucose regularly; follow diet recommendations."
+        "description": "Blood sugar & endocrine disorders.",
+        "note": "Monitor glucose regularly."
     },
     "cardiovascular_blood": {
-        "description": "Used to manage heart conditions and blood-related disorders such as hypertension and cholesterol.",
-        "note": "Regular monitoring is important; follow dosage strictly."
+        "description": "Heart & blood-pressure medicines.",
+        "note": "Follow dosage strictly."
     },
     "analgesics_pain_fever": {
-        "description": "Used to relieve pain and reduce fever.",
-        "note": "Do not exceed recommended dose; risk of liver damage if overused."
+        "description": "Pain relief and fever reduction.",
+        "note": "Do not exceed recommended dose."
     },
     "respiratory_digestive": {
-        "description": "Used to treat respiratory conditions such as cough and asthma, and digestive disorders such as acidity and nausea.",
-        "note": "Some may cause drowsiness; take digestive medications as directed around meals."
+        "description": "Respiratory & digestive treatments.",
+        "note": "Take digestive meds around meals."
     },
     "infections_immunity": {
-        "description": "Used to treat bacterial, fungal, and microbial infections, and to support immune function.",
-        "note": "Complete the full course; do not misuse or overuse antibiotics."
+        "description": "Antibiotics, antifungals, immunology.",
+        "note": "Complete the full course."
     },
     "steroids_topicals": {
-        "description": "Topical medications used to reduce inflammation and treat skin conditions like eczema and rashes.",
-        "note": "Avoid prolonged use; apply only to affected areas."
+        "description": "Topical anti-inflammatory steroids.",
+        "note": "Avoid prolonged use."
     },
     "eye_ear_nose_preparations": {
-        "description": "Used to treat infections and conditions related to eyes, ears, and nose.",
-        "note": "Use hygienically; avoid contamination of applicators."
+        "description": "Eyes, ears, nose treatments.",
+        "note": "Avoid contamination of applicators."
     },
     "vitamins_supplements": {
-        "description": "Used to support general health and treat vitamin or mineral deficiencies.",
-        "note": "Not a substitute for a balanced diet."
+        "description": "Vitamins and mineral supplements.",
+        "note": "Not a substitute for balanced diet."
     }
 }
