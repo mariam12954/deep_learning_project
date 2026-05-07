@@ -1,0 +1,29 @@
+                             precision    recall  f1-score   support
+
+    anaesthetics_speciality     1.0000    1.0000    1.0000         7
+      analgesics_pain_fever     1.0000    1.0000    1.0000        28
+               anti_fungals     1.0000    1.0000    1.0000         5
+antibiotics_anti_infectives     1.0000    1.0000    1.0000        16
+       cardiovascular_blood     1.0000    1.0000    1.0000        39
+   cns_neurology_psychiatry     1.0000    1.0000    1.0000        25
+                dermatology     1.0000    1.0000    1.0000        13
+         diabetes_endocrine     1.0000    1.0000    1.0000        27
+  eye_ear_nose_preparations     1.0000    1.0000    1.0000        25
+           gastrointestinal     1.0000    1.0000    1.0000        25
+           general_medicine     1.0000    1.0000    1.0000         3
+          hormones_oncology     1.0000    1.0000    1.0000        24
+      hormones_reproductive     1.0000    1.0000    1.0000        15
+                 immunology     1.0000    1.0000    1.0000         6
+        infections_immunity     1.0000    1.0000    1.0000        26
+            musculoskeletal     1.0000    1.0000    1.0000         7
+              neuro_musculo     1.0000    1.0000    1.0000        30
+                   oncology     1.0000    1.0000    1.0000         4
+          respiratory_cough     1.0000    1.0000    1.0000        18
+      respiratory_digestive     1.0000    1.0000    1.0000        42
+          steroids_topicals     1.0000    1.0000    1.0000        34
+       vitamins_supplements     1.0000    1.0000    1.0000        12
+          weight_metabolism     1.0000    1.0000    1.0000         3
+
+                   accuracy                         1.0000       434
+                  macro avg     1.0000    1.0000    1.0000       434
+               weighted avg     1.0000    1.0000    1.0000       434
